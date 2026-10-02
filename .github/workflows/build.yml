@@ -1,0 +1,44 @@
+name: APK
+
+# Her push'ta APK derlenir ve "Releases"a konur: telefondan GitHub'a girip son sürümün .apk'sına dokunmak yeter.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: APK derle
+        run: gradle :app:assembleRelease --no-daemon --stacktrace
+
+      - name: Dosyayı adlandır
+        run: cp app/build/outputs/apk/release/app-release.apk "pusula-0.1.${{ github.run_number }}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pusula-apk
+          path: pusula-*.apk
+
+      - name: Sürüm yayınla
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.${{ github.run_number }}
+          name: Pusula 0.1.${{ github.run_number }}
+          body: ${{ github.event.head_commit.message }}
+          files: pusula-*.apk

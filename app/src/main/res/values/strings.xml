@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Pusula</string>
+    <string name="mic_denied">Mikrofon izni olmadan sesli konuşma çalışmaz. Ayarlar → Uygulamalar → Pusula → İzinler.</string>
+    <string name="offline">Pusula\'ya ulaşılamadı. İnternet bağlantını kontrol et.</string>
+</resources>
