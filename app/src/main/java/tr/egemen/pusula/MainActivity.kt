@@ -23,7 +23,7 @@ import android.widget.Toast
 /**
  * Pusula'nın ilk sürümü: paneli (aynı asistan, aynı hafıza) uygulama içinde açar.
  *
- * - Normal açılış → panel ana sayfası.
+ * - Normal açılış → Asistan (sohbet) ekranı; panelin geri kalanı alt menüden.
  * - Asistan tuşu (ana ekran/güç tuşuna uzun basma) ya da kulaklık tuşu → `/ses?mod=konusma`:
  *   eller serbest konuşma modu dokunmadan başlar.
  *
@@ -74,8 +74,10 @@ class MainActivity : Activity() {
     private fun isVoiceLaunch(intent: Intent?): Boolean =
         intent?.action == Intent.ACTION_ASSIST || intent?.action == Intent.ACTION_VOICE_COMMAND
 
+    // Uygulamanın ana kullanımı asistan: normal açılışta da sohbet ekranı gelir (panelin geri kalanı
+    // alttaki menüden). Asistan tuşuyla açılınca konuşma modu da kendiliğinden başlar.
     private fun startUrl(intent: Intent?): String =
-        if (isVoiceLaunch(intent)) "$base/ses?mod=konusma" else "$base/"
+        if (isVoiceLaunch(intent)) "$base/ses?mod=konusma" else "$base/ses"
 
     /** targetSdk 35'te uygulama kenardan kenara çizilir: içerik durum/gezinme çubuğunun altında kalmasın. */
     private fun applySystemBarPadding(view: View) {

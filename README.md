@@ -13,7 +13,8 @@ doğrudan telefona kurulur. Asıl asistan sunucuda (`~/projects/para`); bu uygul
 Güncelleme: yeni sürümün APK'sını kurman yeterli, eskisinin üstüne yüklenir (aynı imza).
 
 ## Sürüm 0.1 (şu an)
-- Paneli uygulama içinde açar; mikrofon izni uygulamadan verilir.
+- Asistan ekranıyla açılır (sohbet + konuşma modu); panelin geri kalanı alt menüden.
+- Mikrofon izni uygulamadan verilir.
 - Asistan tuşu / kulaklık tuşu → `/ses?mod=konusma`: eller serbest konuşma dokunmadan başlar.
 
 ## Sıradakiler (yol haritası §4.6.2, Faz 3)
