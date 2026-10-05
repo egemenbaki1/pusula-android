@@ -15,6 +15,8 @@ Güncelleme: yeni sürümün APK'sını kurman yeterli, eskisinin üstüne yükl
 ## Sürüm 0.1 (şu an)
 - Asistan ekranıyla açılır (sohbet + konuşma modu); panelin geri kalanı alt menüden.
 - Mikrofon izni uygulamadan verilir.
+- Yanıtlar telefonun Türkçe sesiyle cümle cümle, gecikmesiz okunur (TextToSpeech köprüsü:
+  sayfa `PusulaNative.speak(id, metin)` çağırır, bitince `__pusulaSpoken(id)`).
 - Asistan tuşu / kulaklık tuşu → `/ses?mod=konusma`: eller serbest konuşma dokunmadan başlar.
 
 ## Sıradakiler (yol haritası §4.6.2, Faz 3)

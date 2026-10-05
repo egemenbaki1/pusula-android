@@ -9,9 +9,12 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import android.view.View
 import android.view.WindowInsets
 import android.webkit.CookieManager
+import android.webkit.JavascriptInterface
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -19,6 +22,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
+import java.util.Locale
 
 /**
  * Pusula'nın ilk sürümü: paneli (aynı asistan, aynı hafıza) uygulama içinde açar.
@@ -34,6 +38,8 @@ class MainActivity : Activity() {
 
     private lateinit var web: WebView
     private var pendingPermission: PermissionRequest? = null
+    private var tts: TextToSpeech? = null
+    private var ttsReady = false
 
     private val base = BuildConfig.BASE_URL
     private val host = Uri.parse(BuildConfig.BASE_URL).host
@@ -56,12 +62,68 @@ class MainActivity : Activity() {
         }
         web.webViewClient = PanelClient()
         web.webChromeClient = MicClient()
+        setupSpeech()
 
         if (savedInstanceState != null) {
             web.restoreState(savedInstanceState)
         } else {
             web.loadUrl(startUrl(intent))
         }
+    }
+
+    /**
+     * Cihazın Türkçe sesi: Android WebView'de tarayıcı ses motoru (speechSynthesis) çoğu sürümde yok.
+     * Sayfa `PusulaNative.speak(id, metin)` ile cümle cümle okutur; bitince `__pusulaSpoken(id)` çağrılır
+     * (konuşma modu okuma bitince yeniden dinlemeye geçsin diye). Ses anında başlar, ücretsizdir.
+     */
+    private fun setupSpeech() {
+        tts = TextToSpeech(this) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                val result = tts?.setLanguage(Locale("tr", "TR"))
+                ttsReady = result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED
+            }
+        }
+        tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            override fun onStart(utteranceId: String?) {}
+            override fun onDone(utteranceId: String?) = spoken(utteranceId)
+            @Deprecated("eski API")
+            override fun onError(utteranceId: String?) = spoken(utteranceId)
+            override fun onError(utteranceId: String?, errorCode: Int) = spoken(utteranceId)
+            override fun onStop(utteranceId: String?, interrupted: Boolean) = spoken(utteranceId)
+        })
+        web.addJavascriptInterface(SpeechBridge(), "PusulaNative")
+    }
+
+    private fun spoken(id: String?) {
+        val safe = (id ?: return).filter { it.isLetterOrDigit() }
+        runOnUiThread { web.evaluateJavascript("window.__pusulaSpoken && window.__pusulaSpoken('$safe')", null) }
+    }
+
+    /** Sayfaya açılan köprü. Yalnızca Pusula paneli yüklenir (başka siteler tarayıcıda açılır). */
+    private inner class SpeechBridge {
+        @JavascriptInterface
+        fun speak(id: String, text: String) {
+            val engine = tts
+            if (engine == null || !ttsReady) {
+                spoken(id)   // ses yoksa sayfa beklemesin
+                return
+            }
+            engine.speak(text, TextToSpeech.QUEUE_ADD, null, id)
+        }
+
+        @JavascriptInterface
+        fun stop() {
+            tts?.stop()
+        }
+
+        @JavascriptInterface
+        fun available(): Boolean = ttsReady
+    }
+
+    override fun onDestroy() {
+        tts?.stop()
+        tts?.shutdown()
+        super.onDestroy()
     }
 
     // singleTask: uygulama açıkken asistan tuşuna basılırsa yeni pencere değil bu çağrı gelir.
