@@ -32,6 +32,7 @@ import java.util.Locale
  *   eller serbest konuşma modu dokunmadan başlar.
  *
  * Giriş bir kez yapılır; panelin oturum çerezi 30 gün geçerli ve WebView çerezleri saklıyor.
+ * Banka SMS'leri: panelde Hareket → Telefon verisi → "SMS takibini aç" ile açılır (`SmsForwarder`).
  * Health Connect, konum ve "Hey Pusula" uyandırma kelimesi sonraki sürümlerde.
  */
 class MainActivity : Activity() {
@@ -63,6 +64,8 @@ class MainActivity : Activity() {
         web.webViewClient = PanelClient()
         web.webChromeClient = MicClient()
         setupSpeech()
+        // Ağ yokken gelen banka SMS'leri kuyrukta bekliyor olabilir: uygulama açılınca gönderilsin
+        Thread { SmsForwarder.flush(applicationContext) }.start()
 
         if (savedInstanceState != null) {
             web.restoreState(savedInstanceState)
@@ -118,6 +121,29 @@ class MainActivity : Activity() {
 
         @JavascriptInterface
         fun available(): Boolean = ttsReady
+
+        /** Banka SMS'i iletimi: kapali | izin_yok | acik */
+        @JavascriptInterface
+        fun smsStatus(): String = SmsForwarder.status(this@MainActivity)
+
+        /** Panel gönderim adresini verir; izin yoksa istenir. Sonuç `__pusulaSms(durum)` ile döner. */
+        @JavascriptInterface
+        fun enableSms(url: String) {
+            if (!url.startsWith("$base/sms/")) return   // yalnızca kendi sunucumuz
+            SmsForwarder.setUrl(this@MainActivity, url)
+            runOnUiThread {
+                if (SmsForwarder.hasPermission(this@MainActivity)) {
+                    smsStateToPage()
+                } else {
+                    requestPermissions(arrayOf(Manifest.permission.RECEIVE_SMS), REQUEST_SMS)
+                }
+            }
+        }
+    }
+
+    private fun smsStateToPage() {
+        val state = SmsForwarder.status(this)
+        web.evaluateJavascript("window.__pusulaSms && window.__pusulaSms('$state')", null)
     }
 
     override fun onDestroy() {
@@ -192,6 +218,11 @@ class MainActivity : Activity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, results: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, results)
+        if (requestCode == REQUEST_SMS) {
+            // Android 13+: Play Store dışından kurulan uygulamada izin "kısıtlanmış" olabilir, sayfa yol gösterir
+            smsStateToPage()
+            return
+        }
         if (requestCode != REQUEST_MIC) return
         val request = pendingPermission ?: return
         pendingPermission = null
@@ -220,5 +251,6 @@ class MainActivity : Activity() {
 
     companion object {
         private const val REQUEST_MIC = 1
+        private const val REQUEST_SMS = 2
     }
 }
