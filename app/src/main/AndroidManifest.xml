@@ -6,6 +6,11 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <!-- Banka harcama SMS'lerini Para'ya iletmek için (yalnızca gelen SMS; okuma/gönderme yok) -->
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <!-- Konuma bağlı hatırlatıcı (13 Ekim): ~15 dakikada bir konum Core sunucusuna gider -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- Android 11+: ses motoruna (TextToSpeech) erişmek için görünürlük bildirimi; yoksa motor bulunamaz -->
     <queries>
@@ -54,6 +59,14 @@
             android:permission="android.permission.BROADCAST_SMS">
             <intent-filter>
                 <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+        <!-- Konum alarmı (uygulama içi) ve telefon açılışında alarmın yeniden kurulması -->
+        <receiver
+            android:name=".LocationAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
     </application>

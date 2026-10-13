@@ -66,6 +66,7 @@ class MainActivity : Activity() {
         setupSpeech()
         // Ağ yokken gelen banka SMS'leri kuyrukta bekliyor olabilir: uygulama açılınca gönderilsin
         Thread { SmsForwarder.flush(applicationContext) }.start()
+        LocationSender.schedule(applicationContext)   // güncellemeden/yeniden kurulumdan sonra alarm kalsın
 
         if (savedInstanceState != null) {
             web.restoreState(savedInstanceState)
@@ -126,6 +127,36 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun smsStatus(): String = SmsForwarder.status(this@MainActivity)
 
+        /** Konum paylaşımı: kapali | izin_yok | arka_plan_yok | acik */
+        @JavascriptInterface
+        fun locationStatus(): String = LocationSender.status(this@MainActivity)
+
+        /** Konum paylaşımını açar; izinler sırayla istenir (önce konum, sonra "her zaman"). Sonuç `__pusulaKonum`. */
+        @JavascriptInterface
+        fun enableLocation(url: String) {
+            if (!url.startsWith("$base/sms/")) return   // yalnızca kendi sunucumuz
+            LocationSender.enable(this@MainActivity, url)
+            runOnUiThread {
+                when {
+                    !LocationSender.hasForeground(this@MainActivity) -> requestPermissions(
+                        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+                        REQUEST_LOCATION)
+                    !LocationSender.hasBackground(this@MainActivity) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
+                        requestPermissions(arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION), REQUEST_BG_LOCATION)
+                    else -> {
+                        Thread { LocationSender.sendNow(applicationContext) }.start()
+                        locationStateToPage()
+                    }
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun disableLocation() {
+            LocationSender.disable(this@MainActivity)
+            runOnUiThread { locationStateToPage() }
+        }
+
         /** Panel gönderim adresini verir; izin yoksa istenir. Sonuç `__pusulaSms(durum)` ile döner. */
         @JavascriptInterface
         fun enableSms(url: String) {
@@ -139,6 +170,11 @@ class MainActivity : Activity() {
                 }
             }
         }
+    }
+
+    private fun locationStateToPage() {
+        val state = LocationSender.status(this)
+        web.evaluateJavascript("window.__pusulaKonum && window.__pusulaKonum('$state')", null)
     }
 
     private fun smsStateToPage() {
@@ -218,6 +254,18 @@ class MainActivity : Activity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, results: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, results)
+        if (requestCode == REQUEST_LOCATION || requestCode == REQUEST_BG_LOCATION) {
+            // Android 11+: "her zaman izin ver" seçeneği ayrı istenir; sistem bunun için ayarlar sayfasını açar
+            if (requestCode == REQUEST_LOCATION && LocationSender.hasForeground(this) && !LocationSender.hasBackground(this) &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                requestPermissions(arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION), REQUEST_BG_LOCATION)
+                return
+            }
+            LocationSender.schedule(applicationContext)
+            Thread { LocationSender.sendNow(applicationContext) }.start()
+            locationStateToPage()
+            return
+        }
         if (requestCode == REQUEST_SMS) {
             // Android 13+: Play Store dışından kurulan uygulamada izin "kısıtlanmış" olabilir, sayfa yol gösterir
             smsStateToPage()
@@ -252,5 +300,7 @@ class MainActivity : Activity() {
     companion object {
         private const val REQUEST_MIC = 1
         private const val REQUEST_SMS = 2
+        private const val REQUEST_LOCATION = 3
+        private const val REQUEST_BG_LOCATION = 4
     }
 }
