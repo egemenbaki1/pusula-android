@@ -55,12 +55,16 @@ object SmsForwarder {
         return SECRET_WORDS.any { text.contains(it) }
     }
 
-    /** Arka planda çağrılır (ağ işlemi). Önce bekleyenler, sonra yeni SMS gönderilir. */
+    /** Arka planda çağrılır (ağ işlemi). SMS önce kuyruğa yazılır, sonra kuyruk gönderilir.
+     *
+     * 16 Ekim: 23:48'deki 732 TL'lik TEB SMS'i sunucuya hiç ulaşmadı. Eskiden önce gönderiliyor, ancak
+     * başarısız olursa kuyruğa yazılıyordu; Android alıcıya ~10 sn tanıyor, bağlantı süreleri 8+25 sn — ağ
+     * yavaşken süreç gönderim bitmeden öldürülürse SMS ne gönderilmiş ne kuyruğa yazılmış olur. Artık önce
+     * diske yazılıyor; sunucu aynı SMS'i ikinci kez kaydetmez (gönderen + metin + dakika anahtarı). */
     fun forward(context: Context, sender: String, body: String, timeMillis: Long) {
         if (!isFromOrganization(sender) || isSecret(body)) return
-        val item = JSONObject().put("gonderen", sender).put("metin", body).put("zaman", timeMillis)
+        enqueue(context, JSONObject().put("gonderen", sender).put("metin", body).put("zaman", timeMillis))
         flush(context)
-        if (!send(context, item)) enqueue(context, item)
     }
 
     /** Kuyruktakileri yeniden dener; gönderilemeyenler kuyrukta kalır. */
