@@ -2,4 +2,5 @@
 <resources>
     <color name="background">#FAF9F6</color>
     <color name="brand">#1F6F4A</color>
+    <color name="launcher_bg">#070707</color>  <!-- Core logosunun zemini -->
 </resources>
