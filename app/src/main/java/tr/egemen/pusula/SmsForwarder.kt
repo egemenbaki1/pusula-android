@@ -31,7 +31,14 @@ object SmsForwarder {
     )
     private val TR = Locale("tr", "TR")
 
-    fun url(context: Context): String? = prefs(context).getString(KEY_URL, null)
+    fun url(context: Context): String? = moved(prefs(context).getString(KEY_URL, null))
+
+    // 19 Ekim 2026: egemen.tr'nin süresi doldu, sunucu core.brand35.com'a taşındı. Eski adresle kaydedilmiş
+    // SMS/konum uçları yeni sunucuya döner (anahtar aynı); kullanıcının yeniden eşleştirmesi gerekmez.
+    private const val OLD_BASE = "https://para.egemen.tr"
+
+    fun moved(url: String?): String? =
+        if (url != null && url.startsWith(OLD_BASE)) BuildConfig.BASE_URL + url.removePrefix(OLD_BASE) else url
 
     fun setUrl(context: Context, url: String) {
         prefs(context).edit().putString(KEY_URL, url).apply()

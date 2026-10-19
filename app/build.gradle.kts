@@ -17,7 +17,7 @@ android {
         targetSdk = 35
         versionCode = runNumber
         versionName = "0.1.$runNumber"
-        buildConfigField("String", "BASE_URL", "\"https://para.egemen.tr\"")
+        buildConfigField("String", "BASE_URL", "\"https://core.brand35.com\"")
     }
 
     // Uygulama Play Store'a konmuyor, doğrudan telefona kuruluyor. Anahtar deponun içinde (depo özel):

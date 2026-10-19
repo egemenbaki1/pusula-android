@@ -79,7 +79,7 @@ object LocationSender {
 
     /** Arka planda çağrılır. Konum alınamazsa ya da izin yoksa sessizce biter; `done` her durumda çağrılır. */
     fun sendNow(context: Context, done: () -> Unit = {}) {
-        val url = prefs(context).getString(KEY_URL, null)
+        val url = SmsForwarder.moved(prefs(context).getString(KEY_URL, null))
         if (url.isNullOrBlank() || !prefs(context).getBoolean(KEY_ON, false) || !hasForeground(context)) {
             done(); return
         }
