@@ -9,6 +9,8 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
+import android.provider.Settings
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.view.View
@@ -44,6 +46,13 @@ class MainActivity : Activity() {
 
     private val base = BuildConfig.BASE_URL
     private val host = Uri.parse(BuildConfig.BASE_URL).host
+    private var awaitingLocationSettings = false
+    private var bgRequestedAt = 0L
+
+    /** 21 Ekim: güven yalnızca tam kaynakta (https + host + 443). Eskiden yalnızca host bakılıyordu; aynı host'un
+     *  http ya da başka port adresi de panel sayılır, JS köprüsü ve mikrofon ona da açılırdı. */
+    private fun isPanel(uri: Uri?): Boolean =
+        uri != null && uri.scheme == "https" && uri.host == host && (uri.port == -1 || uri.port == 443)
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -142,7 +151,7 @@ class MainActivity : Activity() {
                         arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
                         REQUEST_LOCATION)
                     !LocationSender.hasBackground(this@MainActivity) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
-                        requestPermissions(arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION), REQUEST_BG_LOCATION)
+                        requestBackgroundLocation()
                     else -> {
                         Thread { LocationSender.sendNow(applicationContext) }.start()
                         locationStateToPage()
@@ -222,7 +231,7 @@ class MainActivity : Activity() {
     private inner class PanelClient : WebViewClient() {
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             val url = request.url
-            if (url.host == host) return false
+            if (isPanel(url)) return false
             runCatching { startActivity(Intent(Intent.ACTION_VIEW, url)) }
             return true
         }
@@ -238,7 +247,7 @@ class MainActivity : Activity() {
     private inner class MicClient : WebChromeClient() {
         override fun onPermissionRequest(request: PermissionRequest) {
             val wantsMic = PermissionRequest.RESOURCE_AUDIO_CAPTURE in request.resources
-            val fromPanel = request.origin.host == host
+            val fromPanel = isPanel(request.origin)
             if (!wantsMic || !fromPanel) {
                 request.deny()
                 return
@@ -254,11 +263,24 @@ class MainActivity : Activity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, results: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, results)
+        if (requestCode == REQUEST_BG_LOCATION && !LocationSender.hasBackground(this) &&
+            SystemClock.elapsedRealtime() - bgRequestedAt < SILENT_DENIAL_MS) {
+            // 21 Ekim: "her zaman izin ver" birkaç kez reddedilince sistem bir daha ekran göstermez, istek anında
+            // reddedilir. O zaman uygulamanın izin sayfası açılır; geri dönülünce (onResume) izin yeniden okunur.
+            // Ekran gösterildiyse (kullanıcı ayarlardan elle döndü) ikinci kez açılmaz.
+            awaitingLocationSettings = true
+            Toast.makeText(this, R.string.location_always, Toast.LENGTH_LONG).show()
+            runCatching {
+                startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
+            }
+            locationStateToPage()
+            return
+        }
         if (requestCode == REQUEST_LOCATION || requestCode == REQUEST_BG_LOCATION) {
             // Android 11+: "her zaman izin ver" seçeneği ayrı istenir; sistem bunun için ayarlar sayfasını açar
             if (requestCode == REQUEST_LOCATION && LocationSender.hasForeground(this) && !LocationSender.hasBackground(this) &&
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                requestPermissions(arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION), REQUEST_BG_LOCATION)
+                requestBackgroundLocation()
                 return
             }
             LocationSender.schedule(applicationContext)
@@ -292,6 +314,21 @@ class MainActivity : Activity() {
         web.saveState(outState)
     }
 
+    private fun requestBackgroundLocation() {
+        bgRequestedAt = SystemClock.elapsedRealtime()
+        requestPermissions(arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION), REQUEST_BG_LOCATION)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (awaitingLocationSettings) {
+            awaitingLocationSettings = false
+            LocationSender.schedule(applicationContext)
+            Thread { LocationSender.sendNow(applicationContext) }.start()
+            locationStateToPage()
+        }
+    }
+
     override fun onPause() {
         super.onPause()
         CookieManager.getInstance().flush()   // oturum çerezi diske yazılsın: tekrar giriş istenmesin
@@ -302,5 +339,6 @@ class MainActivity : Activity() {
         private const val REQUEST_SMS = 2
         private const val REQUEST_LOCATION = 3
         private const val REQUEST_BG_LOCATION = 4
+        private const val SILENT_DENIAL_MS = 700L
     }
 }

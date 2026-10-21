@@ -3,4 +3,5 @@
     <string name="app_name">Core</string>
     <string name="mic_denied">Mikrofon izni olmadan sesli konuşma çalışmaz. Ayarlar → Uygulamalar → Core → İzinler.</string>
     <string name="offline">Core\'a ulaşılamadı. İnternet bağlantını kontrol et.</string>
+    <string name="location_always">Konuma bağlı hatırlatıcılar için İzinler → Konum → \"Her zaman izin ver\" seç.</string>
 </resources>

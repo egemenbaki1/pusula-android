@@ -8,6 +8,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Banka SMS'lerini Para'ya iletir (`POST /sms/{anahtar}`).
@@ -71,21 +72,52 @@ object SmsForwarder {
     fun forward(context: Context, sender: String, body: String, timeMillis: Long) {
         if (!isFromOrganization(sender) || isSecret(body)) return
         enqueue(context, JSONObject().put("gonderen", sender).put("metin", body).put("zaman", timeMillis))
-        flush(context)
+        // SMS alıcısının süresi kısa: kuyruk zaten diskte, bu sürede gönderilemeyen 15 dk'lık alarmda gider
+        flush(context, System.currentTimeMillis() + RECEIVER_BUDGET_MS)
     }
 
-    /** Kuyruktakileri yeniden dener; gönderilemeyenler kuyrukta kalır. */
-    @Synchronized
-    fun flush(context: Context) {
-        val queue = queue(context)
-        if (queue.length() == 0) return
-        val left = JSONArray()
-        for (i in 0 until queue.length()) {
-            val item = queue.getJSONObject(i)
-            if (!send(context, item)) left.put(item)
+    // 21 Ekim: flush ile enqueue aynı kilidi tutuyordu. 15 dk'lık alarm yavaş ağda kuyruğu gönderirken (istek başı
+    // 8+25 sn) gelen yeni SMS diske yazılmak için bekliyordu; Android süreci o arada öldürürse SMS kaybolurdu.
+    // Artık kilit yalnızca diske okuma/yazma süresince tutulur, ağ işi kilidin dışında; tek gönderim aynı anda çalışır.
+    private val diskLock = Any()
+    private val sending = AtomicBoolean(false)
+    private const val RECEIVER_BUDGET_MS = 8_000L
+
+    /** Kuyruktakileri yeniden dener; gönderilemeyenler kuyrukta kalır. `deadline` sonrası yeni istek başlatılmaz. */
+    fun flush(context: Context, deadline: Long = Long.MAX_VALUE) {
+        if (!sending.compareAndSet(false, true)) return   // başka gönderim sürüyor: yeni SMS'i o da görür (döngü)
+        try {
+            val tried = HashSet<String>()
+            while (System.currentTimeMillis() < deadline) {
+                val pending = synchronized(diskLock) { queue(context) }
+                val sent = HashSet<String>()
+                var any = false
+                for (i in 0 until pending.length()) {
+                    val item = pending.getJSONObject(i)
+                    val k = key(item)
+                    if (!tried.add(k)) continue
+                    any = true
+                    if (System.currentTimeMillis() >= deadline) break
+                    if (send(context, item)) sent.add(k)
+                }
+                if (sent.isNotEmpty()) synchronized(diskLock) {
+                    val current = queue(context)
+                    val left = JSONArray()
+                    for (i in 0 until current.length()) {
+                        val item = current.getJSONObject(i)
+                        if (key(item) !in sent) left.put(item)
+                    }
+                    saveQueue(context, left)
+                }
+                if (!any) break          // gönderim sırasında yeni SMS gelmediyse bitti
+            }
+        } finally {
+            sending.set(false)
         }
-        saveQueue(context, left)
     }
+
+    private fun key(item: JSONObject): String =
+        "${item.optString("gonderen")}|${item.optLong("zaman")}|${item.optString("metin")}"
 
     /** true: sunucu aldı ya da kalıcı olarak reddetti (yeniden denemenin anlamı yok). */
     private fun send(context: Context, item: JSONObject): Boolean {
@@ -107,8 +139,7 @@ object SmsForwarder {
         }
     }
 
-    @Synchronized
-    private fun enqueue(context: Context, item: JSONObject) {
+    private fun enqueue(context: Context, item: JSONObject) = synchronized(diskLock) {
         val queue = queue(context)
         queue.put(item)
         val trimmed = JSONArray()
@@ -120,8 +151,9 @@ object SmsForwarder {
     private fun queue(context: Context): JSONArray =
         runCatching { JSONArray(prefs(context).getString(KEY_QUEUE, "[]")) }.getOrDefault(JSONArray())
 
+    // commit: diske yazılmadan dönmez. apply arka planda yazar; süreç hemen öldürülürse yeni SMS diske hiç inmeyebilir.
     private fun saveQueue(context: Context, queue: JSONArray) {
-        prefs(context).edit().putString(KEY_QUEUE, queue.toString()).apply()
+        prefs(context).edit().putString(KEY_QUEUE, queue.toString()).commit()
     }
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
