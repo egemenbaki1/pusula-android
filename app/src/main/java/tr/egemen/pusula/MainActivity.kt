@@ -166,6 +166,20 @@ class MainActivity : Activity() {
             runOnUiThread { locationStateToPage() }
         }
 
+        /** Banka uygulaması bildirimleri: kapali | izin_yok | acik (21 Ekim) */
+        @JavascriptInterface
+        fun notificationStatus(): String = BankNotificationListener.status(this@MainActivity)
+
+        /** Android bu izni diyalogla vermez: Bildirim erişimi ayarı açılır, dönünce panel durumu yeniden okur. */
+        @JavascriptInterface
+        fun enableNotifications() {
+            runOnUiThread {
+                runCatching { startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
+                    .onFailure { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.fromParts("package", packageName, null))) }
+            }
+        }
+
         /** Panel gönderim adresini verir; izin yoksa istenir. Sonuç `__pusulaSms(durum)` ile döner. */
         @JavascriptInterface
         fun enableSms(url: String) {

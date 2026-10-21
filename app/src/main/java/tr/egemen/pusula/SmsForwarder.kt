@@ -121,8 +121,35 @@ object SmsForwarder {
         }
     }
 
+    /** Banka uygulaması bildirimi (`BankNotificationListener`): SMS gibi kuyruğa, sunucuda "bildirim" kanalı.
+     *  Uygulamalar aynı bildirimi güncelleyip yeniden yayınlar: aynı bildirim (`key`) aynı metinle 24 saat içinde
+     *  bir kez gider. Yeni bir işlem yeni bildirimdir (farklı key ya da metin). */
+    fun forwardNotification(context: Context, notificationKey: String, sender: String, body: String, timeMillis: Long) {
+        if (!firstTime(context, "$notificationKey|$body")) return
+        val item = if (isSecret(body))
+            JSONObject().put("gonderen", sender).put("metin", "").put("elendi", "gizli").put("uzunluk", body.length)
+        else JSONObject().put("gonderen", sender).put("metin", body)
+        enqueue(context, item.put("kanal", "bildirim").put("zaman", timeMillis))
+        flush(context, System.currentTimeMillis() + RECEIVER_BUDGET_MS)
+    }
+
+    private const val KEY_SEEN = "gorulen_bildirimler"
+    private const val SEEN_MS = 24 * 60 * 60 * 1000L
+
+    private fun firstTime(context: Context, identity: String): Boolean = synchronized(diskLock) {
+        val now = System.currentTimeMillis()
+        val hash = identity.hashCode().toString()
+        val seen = runCatching { JSONObject(prefs(context).getString(KEY_SEEN, "{}")) }.getOrDefault(JSONObject())
+        val kept = JSONObject()
+        for (k in seen.keys()) if (now - seen.optLong(k) < SEEN_MS) kept.put(k, seen.optLong(k))
+        val fresh = !kept.has(hash)
+        if (fresh) kept.put(hash, now)
+        prefs(context).edit().putString(KEY_SEEN, kept.toString()).commit()
+        fresh
+    }
+
     private fun key(item: JSONObject): String =
-        "${item.optString("gonderen")}|${item.optLong("zaman")}|${item.optString("metin")}"
+        "${item.optString("kanal")}|${item.optString("gonderen")}|${item.optLong("zaman")}|${item.optString("metin")}"
 
     /** true: sunucu aldı ya da kalıcı olarak reddetti (yeniden denemenin anlamı yok). */
     private fun send(context: Context, item: JSONObject): Boolean {
