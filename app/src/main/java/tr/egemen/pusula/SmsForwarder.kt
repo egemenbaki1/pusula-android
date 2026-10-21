@@ -70,8 +70,13 @@ object SmsForwarder {
      * yavaşken süreç gönderim bitmeden öldürülürse SMS ne gönderilmiş ne kuyruğa yazılmış olur. Artık önce
      * diske yazılıyor; sunucu aynı SMS'i ikinci kez kaydetmez (gönderen + metin + dakika anahtarı). */
     fun forward(context: Context, sender: String, body: String, timeMillis: Long) {
-        if (!isFromOrganization(sender) || isSecret(body)) return
-        enqueue(context, JSONObject().put("gonderen", sender).put("metin", body).put("zaman", timeMillis))
+        if (!isFromOrganization(sender)) return
+        // 21 Ekim: iyzico ile aynı anda gelen TEB SMS'i sunucuya hiç ulaşmadı ve hiçbir yerde iz yoktu. Şifre/kod
+        // içeren SMS'in metni yine telefondan çıkmaz; yalnızca gönderen ve uzunluk gider, sunucu "telefonda elendi" yazar.
+        val item = if (isSecret(body))
+            JSONObject().put("gonderen", sender).put("metin", "").put("elendi", "gizli").put("uzunluk", body.length)
+        else JSONObject().put("gonderen", sender).put("metin", body)
+        enqueue(context, item.put("zaman", timeMillis))
         // SMS alıcısının süresi kısa: kuyruk zaten diskte, bu sürede gönderilemeyen 15 dk'lık alarmda gider
         flush(context, System.currentTimeMillis() + RECEIVER_BUDGET_MS)
     }
