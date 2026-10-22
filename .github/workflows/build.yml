@@ -28,17 +28,17 @@ jobs:
         run: gradle :app:assembleRelease --no-daemon --stacktrace
 
       - name: Dosyayı adlandır
-        run: cp app/build/outputs/apk/release/app-release.apk "pusula-0.1.${{ github.run_number }}.apk"
+        run: cp app/build/outputs/apk/release/app-release.apk "core-0.1.${{ github.run_number }}.apk"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: pusula-apk
-          path: pusula-*.apk
+          name: core-apk
+          path: core-*.apk
 
       - name: Sürüm yayınla
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.1.${{ github.run_number }}
-          name: Pusula 0.1.${{ github.run_number }}
+          name: Core 0.1.${{ github.run_number }}
           body: ${{ github.event.head_commit.message }}
-          files: pusula-*.apk
+          files: core-*.apk

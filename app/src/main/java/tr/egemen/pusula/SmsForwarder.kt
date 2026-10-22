@@ -11,7 +11,7 @@ import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Banka SMS'lerini Para'ya iletir (`POST /sms/{anahtar}`).
+ * Banka SMS'lerini Core'a iletir (`POST /sms/{anahtar}`).
  *
  * Telefondan yalnızca şu çıkar: harfli bir göndericiden (TEB, GARANTI…) gelen ve içinde şifre/doğrulama
  * kodu geçmeyen SMS. Kişilerden gelen (numaralı) SMS'ler ve tek kullanımlık kodlar hiç gönderilmez.

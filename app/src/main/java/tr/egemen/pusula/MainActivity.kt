@@ -27,7 +27,7 @@ import android.widget.Toast
 import java.util.Locale
 
 /**
- * Pusula'nın ilk sürümü: paneli (aynı asistan, aynı hafıza) uygulama içinde açar.
+ * Core'un ilk sürümü: paneli (aynı asistan, aynı hafıza) uygulama içinde açar.
  *
  * - Normal açılış → Asistan (sohbet) ekranı; panelin geri kalanı alt menüden.
  * - Asistan tuşu (ana ekran/güç tuşuna uzun basma) ya da kulaklık tuşu → `/ses?mod=konusma`:
@@ -35,7 +35,7 @@ import java.util.Locale
  *
  * Giriş bir kez yapılır; panelin oturum çerezi 30 gün geçerli ve WebView çerezleri saklıyor.
  * Banka SMS'leri: panelde Hareket → Telefon verisi → "SMS takibini aç" ile açılır (`SmsForwarder`).
- * Health Connect, konum ve "Hey Pusula" uyandırma kelimesi sonraki sürümlerde.
+ * Health Connect, konum ve "Hey Core" uyandırma kelimesi sonraki sürümlerde.
  */
 class MainActivity : Activity() {
 
@@ -112,7 +112,7 @@ class MainActivity : Activity() {
         runOnUiThread { web.evaluateJavascript("window.__pusulaSpoken && window.__pusulaSpoken('$safe')", null) }
     }
 
-    /** Sayfaya açılan köprü. Yalnızca Pusula paneli yüklenir (başka siteler tarayıcıda açılır). */
+    /** Sayfaya açılan köprü. Yalnızca Core paneli yüklenir (başka siteler tarayıcıda açılır). */
     private inner class SpeechBridge {
         @JavascriptInterface
         fun speak(id: String, text: String) {

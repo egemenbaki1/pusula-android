@@ -9,7 +9,7 @@ import android.service.notification.StatusBarNotification
 import java.util.Locale
 
 /**
- * Banka/ödeme uygulamalarının bildirimlerini Para'ya iletir (21 Ekim).
+ * Banka/ödeme uygulamalarının bildirimlerini Core'a iletir (21 Ekim).
  *
  * TEB hesaba gelen parayı (4.800 TL) SMS'le değil CEPTETEB bildirimiyle bildiriyor; sistemde SMS'ten gelmiş tek bir
  * para girişi yoktu. Yalnızca banka/ödeme uygulamalarının tutar içeren bildirimleri çıkar: uygulama adı ya da paket

@@ -6,7 +6,7 @@ import android.content.Intent
 import android.provider.Telephony
 
 /**
- * Gelen SMS'i yakalar ve banka bildirimiyse Para'ya iletir (filtre `SmsForwarder`'da).
+ * Gelen SMS'i yakalar ve banka bildirimiyse Core'a iletir (filtre `SmsForwarder`'da).
  *
  * Uzun SMS'ler parça parça gelir: aynı göndericinin parçaları birleştirilir. Ağ işlemi ana iş parçacığında
  * yapılamaz; `goAsync` ile alıcı, gönderim bitene kadar açık tutulur.

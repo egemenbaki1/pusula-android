@@ -1,10 +1,10 @@
-# Pusula — Android
+# Core — Android
 
-Egemen'in yaşam asistanının (Para / Pusula, `para.egemen.tr`) telefon uygulaması. Play Store'a konmaz,
+Egemen'in yaşam asistanının (Core, `core.brand35.com`) telefon uygulaması. Play Store'a konmaz,
 doğrudan telefona kurulur. Asıl asistan sunucuda (`~/projects/para`); bu uygulama ona açılan kapı.
 
 ## Kurulum (telefonda)
-1. GitHub → bu depo → **Releases** → en üstteki sürüm → `pusula-…apk`'ya dokun.
+1. GitHub → bu depo → **Releases** → en üstteki sürüm → `core-…apk`'ya dokun.
 2. "Bilinmeyen kaynaklardan yükleme" izni sorulursa tarayıcıya ver, kur.
 3. Uygulamayı aç, panel şifrenle bir kez giriş yap (oturum 30 gün kalır).
 4. **Asistan tuşu:** Ayarlar → Uygulamalar → Varsayılan uygulamalar → **Dijital asistan uygulaması** →
